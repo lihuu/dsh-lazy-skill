@@ -9,8 +9,49 @@ It is an **out-of-tree** plugin: it lives entirely in `$DSH_HOME` (your Harness 
 and does not modify the Harness repository.
 
 ---
+## Why this plugin exists
 
-## Features
+Harness already exposes skills that a model can load on demand. That works well
+when you have a handful of unrelated skills. When you have a **family of related
+skills** that belong together — a toolchain, a workflow with phases, a project
+with several sub-tasks — two problems appear:
+
+1. The model has to **decide which sub-skill to load**, so it starts asking the
+   user questions instead of just doing the work.
+2. Everything related is scattered, so loading one thing gives no hint that the
+   other pieces exist.
+
+`dsh-lazy-skill` lets you **declare the intent in the skill itself** (metadata),
+so loading follows a rule instead of a guess. If you *do* want the model to
+decide, you can opt out and fall back to body text.
+
+The simplest way to understand the intent is an example:
+
+### Example — a "deploy" bundle
+
+Say you have three steps for every deploy: build, push, and rollback. You wrap
+them in one bundle box:
+
+```
+boxes/deploy/
+  SKILL.md          # root skill, frontmatter has `loadSubskills`
+  build/SKILL.md
+  push/SKILL.md
+  rollback/SKILL.md
+```
+
+With `loadSubskills` configured, telling the model to **use `deploy`** loads all
+three sub-skills at once — the model immediately has the build/push/rollback
+instructions and can carry out the whole deploy without asking "which one?".
+
+Without `loadSubskills`, `deploy` just returns its short body text and the model
+reads that and follows the instruction itself.
+
+That is the whole point: **a bundle box turns "a set of related skills + how to
+use them" into one thing the model can load by intent, instead of reasoning out
+each piece.**
+
+---
 
 - **Bundle box** = a directory with a root `SKILL.md` plus sibling sub-skill
   directories, each with its own `SKILL.md`.
