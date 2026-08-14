@@ -1,50 +1,48 @@
 # dsh-lazy-skill
 
-A plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) that
-organizes groups of related skills into **bundle boxes**. Each box has one **root**
-(main) skill and any number of **sub-skills**; a box is loaded either by frontmatter
+A plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+that groups related skills into **bundle boxes**. Each box has one **root**
+skill and any number of **sub-skills**; a box loads either by frontmatter
 metadata (`loadSubskills`) or by letting the model decide from the body text.
 
-It is an **out-of-tree** plugin: it lives entirely in `$DSH_HOME` (your Harness home)
-and does not modify the Harness repository.
+It is an **out-of-tree** plugin: it lives entirely under `$DSH_HOME` and never
+modifies the Harness repository.
 
 ---
-## Why this plugin exists
 
-Harness already exposes skills that a model can load on demand. That works well
-when you have a handful of unrelated skills. When you have a **family of related
-skills** that belong together — a toolchain, a workflow with phases, a project
-with several sub-tasks — the naive approach has a real cost:
+## Why it exists
 
-**Every skill that is available tends to get pulled into the model context on
-use, even when it is unrelated to the task at hand.** If your session simply **has** such a group installed, the whole group's instructions can end up loaded
-even when this task never touches them — wasting tokens, bloating the context
-window, breaking KV-cache reuse, and slowing every turn.
+Harness already lets a model load skills on demand, which works well for a few
+unrelated skills. A **family of related skills** — a toolchain, a phased
+workflow, a project with several sub-tasks — has a real cost under the naive
+approach:
 
-Two symptoms follow from that:
+> Every available skill tends to get pulled into the model context on use, even
+> when it is unrelated to the current task. If a session merely *has* such a
+> group installed, the whole group's instructions can end up loaded even when
+> the task never touches them — wasting tokens, bloating the context window,
+> breaking KV-cache reuse, and slowing every turn.
 
-1. **Context pollution** — unrelated groups still occupy prompt budget.
-2. **Unnecessary questions** — because everything is already "in context", the
-   model drifts into asking which piece to use instead of just working.
+Two symptoms follow:
 
-`dsh-lazy-skill` solves this by making loading **explicit and on-demand**:
+1. **Context pollution** — unrelated groups still consume prompt budget.
+2. **Unnecessary questions** — with everything in-context, the model drifts into
+   asking which piece to use instead of just working.
+
+`dsh-lazy-skill` makes loading **explicit and on-demand**:
 
 - A group (a **bundle box**) is exposed as one small root skill.
-- Its sub-skills are **not** loaded up front. They load only when you
-  explicitly pull the box in via `loadSubskills` metadata — and then only the
-  ones you listed are brought in.
-- Nothing about that group is in the context until you ask for it.
+- Its sub-skills are **not** loaded up front. They load only when the box is
+  pulled in via `loadSubskills` — and then only the ones listed.
+- Nothing from the group is in context until you ask for it.
 
-You can also opt out per box: without `loadSubskills`, the box just returns its
-short body text and the model follows that, which is fine for cases where you
-*did* want it always present.
-
-The simplest way to understand the intent is an example:
+You can opt out per box: without `loadSubskills`, the box returns its short root
+body and the model follows that text, fine for boxes you actually want
+always-present.
 
 ### Example — a "deploy" bundle
 
-Say you have three steps for every deploy: build, push, and rollback. You wrap
-them in one bundle box:
+Three steps per deploy: build, push, rollback. Wrap them in one box:
 
 ```
 boxes/deploy/
@@ -54,58 +52,63 @@ boxes/deploy/
   rollback/SKILL.md
 ```
 
-With `loadSubskills` configured, telling the model to **use `deploy`** loads all
-three sub-skills at once — the model immediately has the build/push/rollback
-instructions and can carry out the whole deploy without asking "which one?".
+With `loadSubskills`, telling the model to **use `deploy`** loads all three
+sub-skill bodies at once — it immediately has the build/push/rollback
+instructions and can run the whole deploy without asking "which one?".
 
-Without `loadSubskills`, `deploy` just returns its short body text and the model
-reads that and follows the instruction itself.
-
-That is the whole point: **a bundle box turns "a set of related skills + how to
-use them" into one thing the model can load by intent, instead of reasoning out
-each piece.**
+Without it, `deploy` returns just its short body text and the model reads and
+follows that.
 
 ---
 
-- **Bundle box** = a directory with a root `SKILL.md` plus sibling sub-skill
+## Features
+
+- **Bundle box** — a directory with a root `SKILL.md` plus sibling sub-skill
   directories, each with its own `SKILL.md`.
-- **Two load rules** (decided by the root skill's frontmatter):
-  - `loadSubskills: [...]` → the box loads **only** those sub-skill bodies and
-    **ignores the root body**. No model decision needed.
-  - no `loadSubskills` → returns the root body as-is; the **model decides** what to
-    load.
-- **Three model-facing tools**: `skill` (default loader), `skill_load` (explicit
-  load one or more skills by name), `skill_browse` (list a box's sub-skill names).
-- **None of this touches the framework core** — it is a plain Cordis plugin.
+- **Two load rules**, decided by the root skill's frontmatter:
+
+  | Root frontmatter | On load the box produces |
+  |---|---|
+  | `loadSubskills: [a, b]` | sub-skill `a` + `b` bodies only (root body ignored) |
+  | no `loadSubskills` | root body as-is; model decides from its text |
+
+- **Model-facing tools**: `skill` (default loader, follows the rules above),
+  `skill_load` (explicitly load one or more skills by name), `skill_browse`
+  (list a box's sub-skill names).
+- **No framework changes** — a plain Cordis plugin.
 
 ---
 
 ## Requirements
 
-- A working DeepSeek Harness setup (`dsh`), e.g. `dsh --profile web`.
-- Provide `boxesDir` pointing at your bundle boxes (see below).
-- Node.js for building the TypeScript source (`npm install && npm run build`).
+- A working DeepSeek Harness installation (`dsh`), e.g. `dsh --profile web`.
+- `boxesDir` pointing at your bundle boxes.
+- Node.js to build the TypeScript source (`npm install && npm run build`).
 
 ---
 
 ## Install
 
-The plugin is resolved by the Harness Loader through a module name. The two sane
-ways to mount it:
+The Loader resolves the plugin by module name; the plugin itself is not on npm,
+so it must be reachable on disk. Two ways to mount it:
 
 ### Option A — global (all profiles)
 
-1. Put this repository (or a copy/symlink of it) somewhere under your Harness home,
-   e.g. `$DSH_HOME/plugins/dsh-lazy-skill`.
-2. Make it resolvable under a module name the Loader can import. The simplest way is
-   a symlink in the shared modules dir:
+1. Put this repository somewhere under your Harness home:
+
+   ```sh
+   mkdir -p "$DSH_HOME/plugins" && cp -r dsh-lazy-skill "$DSH_HOME/plugins/"
+   ```
+
+2. Make it resolvable under a module name the Loader can import, via a symlink
+   in the shared modules dir:
 
    ```sh
    mkdir -p "$DSH_HOME/profiles/node_modules/@local"
    ln -s "$DSH_HOME/plugins/dsh-lazy-skill" "$DSH_HOME/profiles/node_modules/@local/dsh-lazy-skill"
    ```
 
-3. Add a global patch (`$DSH_HOME/cordis.patch.yml`) that inserts the plugin row:
+3. Add a global patch (`$DSH_HOME/cordis.patch.yml`) that inserts the row:
 
    ```yaml
    - insert:
@@ -117,24 +120,24 @@ ways to mount it:
 
 ### Option B — per profile
 
-Put the same `insert` block into a specific profile's patch
-(`$DSH_HOME/profiles/<name>/cordis.patch.yml`) instead of the home-level file.
+Put the same `insert` block into a specific profile's patch instead:
+`$DSH_HOME/profiles/<name>/cordis.patch.yml`.
 
-> Replace the absolute `boxesDir` with wherever you keep your bundle boxes. For
-> `!!js` expressions (e.g. referencing `$DSH_HOME`) the loader supports them; use a
-> literal absolute path if in doubt.
+> The `boxesDir` in the example uses `$DSH_HOME`. The loader supports `!!js`
+> expressions for such environment references; if in doubt, use a literal
+> absolute path.
 
 ---
 
 ## Creating a skill bundle
 
-A box is just a directory:
+A box is just a directory. For example the shipped `example-kit`:
 
 ```
 $DSH_HOME/plugins/dsh-lazy-skill/boxes/
   example-kit/
-    SKILL.md                  # root skill
-    hello/SKILL.md            # sub-skill
+    SKILL.md          # root skill
+    hello/SKILL.md    # sub-skill
 ```
 
 Every `SKILL.md` needs `name` + `description` in its frontmatter:
@@ -143,7 +146,7 @@ Every `SKILL.md` needs `name` + `description` in its frontmatter:
 ---
 name: example-kit
 description: "A reference bundle box."
-loadSubskills:          # optional: auto-load these sub-skills
+loadSubskills:      # optional: auto-load these sub-skills
   - hello
 ---
 
@@ -158,23 +161,16 @@ name: hello
 description: "The first sub-skill of example-kit."
 ---
 
-Sub-skill A body.
+Sub-skill body text.
 ```
-
-### Rules recap
-
-| Root frontmatter | On load the box produces |
-|---|---|
-| has `loadSubskills: [a, b]` | sub-skill `a` + `b` bodies only (root body ignored) |
-| no `loadSubskills` | root body as-is; model decides from its text |
 
 ---
 
 ## YAML gotcha
 
-YAML 1.2 (used by this plugin) rejects a plain scalar that looks like a "compact
-mapping". If your `description` or other values contain a comma next to a colon
-(e.g. `a: x, b, c`), **wrap the value in double quotes**:
+YAML 1.2 (used by this plugin) rejects a plain scalar that looks like a
+"compact mapping". If a value — e.g. `description` — contains a comma next to a
+colon (`a: x, b, c`), **wrap it in double quotes**:
 
 ```yaml
 description: "a, b, c: needs quoting because of the comma/colon"
