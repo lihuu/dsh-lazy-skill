@@ -131,23 +131,29 @@ Put the same `insert` block into a specific profile's patch instead:
 
 ## Creating a skill bundle
 
-A box is just a directory. For example the shipped `example-kit`:
+A box is just a directory. For example the shipped `dsh-lazy-skill-guides` box:
 
 ```
 $DSH_HOME/plugins/dsh-lazy-skill/boxes/
-  example-kit/
-    SKILL.md          # root skill
-    hello/SKILL.md    # sub-skill
+  dsh-lazy-skill-guides/
+    SKILL.md              # root skill
+    install-plugin/SKILL.md
+    create-bundle/SKILL.md
+    bundle-from-skills/SKILL.md
+    fix-frontmatter/SKILL.md
 ```
 
 Every `SKILL.md` needs `name` + `description` in its frontmatter:
 
 ```markdown
 ---
-name: example-kit
-description: "A reference bundle box."
-loadSubskills:      # optional: auto-load these sub-skills
-  - hello
+name: dsh-lazy-skill-guides
+description: "Guides for using this plugin."
+loadSubskills:          # optional: auto-load these sub-skills
+  - install-plugin
+  - create-bundle
+  - bundle-from-skills
+  - fix-frontmatter
 ---
 
 Body text (ignored when loadSubskills is present).
@@ -157,11 +163,11 @@ Sub-skills are ordinary skills too:
 
 ```markdown
 ---
-name: hello
-description: "The first sub-skill of example-kit."
+name: install-plugin
+description: "How to install dsh-lazy-skill."
 ---
 
-Sub-skill body text.
+How to install the plugin...
 ```
 
 ---
