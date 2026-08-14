@@ -14,16 +14,30 @@ and does not modify the Harness repository.
 Harness already exposes skills that a model can load on demand. That works well
 when you have a handful of unrelated skills. When you have a **family of related
 skills** that belong together — a toolchain, a workflow with phases, a project
-with several sub-tasks — two problems appear:
+with several sub-tasks — the naive approach has a real cost:
 
-1. The model has to **decide which sub-skill to load**, so it starts asking the
-   user questions instead of just doing the work.
-2. Everything related is scattered, so loading one thing gives no hint that the
-   other pieces exist.
+**Every skill that is available tends to get pulled into the model context on
+use, even when it is unrelated to the task at hand.** If your session simply **has** such a group installed, the whole group's instructions can end up loaded
+even when this task never touches them — wasting tokens, bloating the context
+window, breaking KV-cache reuse, and slowing every turn.
 
-`dsh-lazy-skill` lets you **declare the intent in the skill itself** (metadata),
-so loading follows a rule instead of a guess. If you *do* want the model to
-decide, you can opt out and fall back to body text.
+Two symptoms follow from that:
+
+1. **Context pollution** — unrelated groups still occupy prompt budget.
+2. **Unnecessary questions** — because everything is already "in context", the
+   model drifts into asking which piece to use instead of just working.
+
+`dsh-lazy-skill` solves this by making loading **explicit and on-demand**:
+
+- A group (a **bundle box**) is exposed as one small root skill.
+- Its sub-skills are **not** loaded up front. They load only when you
+  explicitly pull the box in via `loadSubskills` metadata — and then only the
+  ones you listed are brought in.
+- Nothing about that group is in the context until you ask for it.
+
+You can also opt out per box: without `loadSubskills`, the box just returns its
+short body text and the model follows that, which is fine for cases where you
+*did* want it always present.
 
 The simplest way to understand the intent is an example:
 
