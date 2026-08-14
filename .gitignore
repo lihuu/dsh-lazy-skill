@@ -1,0 +1,11 @@
+# Environment/paths
+node_modules
+lib/
+*.tsbuildinfo
+
+# OS
+.DS_Store
+
+# Local debug bundles — do not share
+boxes/my-toolkit/
+boxes/other-kit/
