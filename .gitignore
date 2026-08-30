@@ -9,3 +9,8 @@ lib/
 # Local debug bundles — do not share
 boxes/my-toolkit/
 boxes/other-kit/
+
+# Generated artifacts
+*.tgz
+coverage/
+.tmp/
