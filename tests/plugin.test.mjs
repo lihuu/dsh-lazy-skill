@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { apply } from '../lib/index.js'
 
 function makeFixture(files) {
-  const root = mkdtempSync(join(tmpdir(), 'lazy-skill-plugin-'))
+  const root = mkdtempSync(join(tmpdir(), 'skill-bundle-plugin-'))
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel)
     mkdirSync(join(abs, '..'), { recursive: true })

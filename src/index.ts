@@ -1,5 +1,5 @@
 /**
- * dsh-lazy-skill — a two-level lazy skill capability.
+ * dsh-skill-bundle — a two-level lazy skill capability.
  *
  * A bundle "box" holds a root `SKILL.md` beside sibling sub-directories, each
  * with its own `SKILL.md`. This plugin:
@@ -13,7 +13,7 @@
  * The default `@deepseek-ai/dsh-tool-skill` loader stays untouched; this is a
  * pure addition beside it.
  *
- * @module dsh-lazy-skill
+ * @module dsh-skill-bundle
  */
 
 import { join } from 'node:path'
@@ -31,7 +31,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 import { discoverBoxes, type Box, type DiscoveredSkill } from './box.ts'
 
 /** Name of this plugin, used as the loader row name. */
-export const name = 'dsh-lazy-skill'
+export const name = 'dsh-skill-bundle'
 
 /** Core services required before discovery can run. */
 export const inject = ['skills', 'tools']
@@ -82,24 +82,24 @@ function resolveExpandedSubskills(box: Box): readonly DiscoveredSkill[] | undefi
   if (declared === true) return box.subs
   if (!Array.isArray(declared)) {
     throw new Error(
-      `dsh-lazy-skill: box ${box.dir}: loadSubskills must be true or an array of child names, got ${JSON.stringify(declared)}`,
+      `dsh-skill-bundle: box ${box.dir}: loadSubskills must be true or an array of child names, got ${JSON.stringify(declared)}`,
     )
   }
   const seen = new Set<string>()
   return declared.map((name) => {
     if (typeof name !== 'string' || name.length === 0) {
       throw new Error(
-        `dsh-lazy-skill: box ${box.dir}: loadSubskills entries must be non-empty strings, got ${JSON.stringify(name)}`,
+        `dsh-skill-bundle: box ${box.dir}: loadSubskills entries must be non-empty strings, got ${JSON.stringify(name)}`,
       )
     }
     if (seen.has(name)) {
-      throw new Error(`dsh-lazy-skill: box ${box.dir}: loadSubskills lists "${name}" more than once`)
+      throw new Error(`dsh-skill-bundle: box ${box.dir}: loadSubskills lists "${name}" more than once`)
     }
     seen.add(name)
     const sub = box.subs.find(item => item.name === name)
     if (sub === undefined) {
       throw new Error(
-        `dsh-lazy-skill: box ${box.dir}: loadSubskills references child "${name}" which does not exist in this box`,
+        `dsh-skill-bundle: box ${box.dir}: loadSubskills references child "${name}" which does not exist in this box`,
       )
     }
     return sub
@@ -125,7 +125,7 @@ function renderExpandedSubskills(skills: readonly DiscoveredSkill[]): string {
  */
 export function apply(ctx: Context, config: Config = {}): void {
   const root = boxesDir(config)
-  ctx.logger?.info?.('dsh-lazy-skill: boxes root %s', root)
+  ctx.logger?.info?.('dsh-skill-bundle: boxes root %s', root)
 
   const provider: SkillProvider = {
     name,

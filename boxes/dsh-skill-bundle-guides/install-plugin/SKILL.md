@@ -1,27 +1,27 @@
 ---
 name: install-plugin
-description: 'How to install dsh-lazy-skill into a DeepSeek Harness profile (npm bundle install, or a source checkout for development).'
+description: 'How to install dsh-skill-bundle into a DeepSeek Harness profile (npm bundle install, or a source checkout for development).'
 ---
 
-If asked to install dsh-lazy-skill, follow these steps:
+If asked to install dsh-skill-bundle, follow these steps:
 
 1. **Preferred — npm bundle.** The package declares `dsh.bundle` and ships
    prebuilt `lib/` plus the default `boxes/`, so `dsh plugin add` activates it
    as a Harness layer with no build step:
 
    ```
-   dsh plugin --profile <name> add dsh-lazy-skill
+   dsh plugin --profile <name> add @lihuu/dsh-skill-bundle
    dsh --profile <name> --dump-config
    ```
 
-   The dump must show a `dsh-lazy-skill` layer. Restart the running profile
+   The dump must show a `dsh-skill-bundle` layer. Restart the running profile
    after the bundle membership change.
 
 2. **Development — source checkout.** Clone (or copy) the repository, then
    build it before use:
 
    ```
-   cd /path/to/dsh-lazy-skill
+   cd /path/to/dsh-skill-bundle
    npm install && npm run build
    ```
 

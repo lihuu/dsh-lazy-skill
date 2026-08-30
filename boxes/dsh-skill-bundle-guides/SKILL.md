@@ -1,5 +1,5 @@
 ---
-name: dsh-lazy-skill-guides
+name: dsh-skill-bundle-guides
 description: "Guides for using this plugin: install it, create a bundle, pack a group of skills into a bundle, and fix frontmatter parse errors."
 loadSubskills:
   - install-plugin

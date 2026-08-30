@@ -1,6 +1,6 @@
 ---
 name: create-bundle
-description: "How to create a new dsh-lazy-skill bundle box from scratch."
+description: "How to create a new dsh-skill-bundle bundle box from scratch."
 ---
 
 To create a new bundle box under a boxes root (the installed package's `boxes/`,

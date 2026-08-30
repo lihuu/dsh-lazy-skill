@@ -1,5 +1,5 @@
 /**
- * Bundle-box discovery and parsing for the lazy-skill plugin.
+ * Bundle-box discovery and parsing for the skill-bundle plugin.
  *
  * A "box" (bundle) is a directory whose root holds a `SKILL.md` (the root
  * skill) beside any number of sibling sub-directories, each containing its own
@@ -7,7 +7,7 @@
  * sub-skills are hidden from the catalog and only become visible when a
  * consumer calls `skill_browse` on their box.
  *
- * @module dsh-lazy-skill/box
+ * @module dsh-skill-bundle/box
  */
 
 import { readdir, readFile } from 'node:fs/promises'

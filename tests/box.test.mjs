@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { parseSkillFile, discoverBoxes } from '../lib/box.js'
 
 function makeFixture(files) {
-  const root = mkdtempSync(join(tmpdir(), 'lazy-skill-box-'))
+  const root = mkdtempSync(join(tmpdir(), 'skill-bundle-box-'))
   for (const [rel, content] of Object.entries(files)) {
     const abs = join(root, rel)
     mkdirSync(join(abs, '..'), { recursive: true })

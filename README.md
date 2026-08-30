@@ -1,4 +1,4 @@
-# dsh-lazy-skill
+# dsh-skill-bundle
 
 A plugin for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
 that groups related skills into **bundle boxes**. Each box has one **root**
@@ -33,7 +33,7 @@ Two symptoms follow:
 2. **Unnecessary questions** — with many sibling summaries in-context, the model
    drifts into asking which piece to use instead of just working.
 
-`dsh-lazy-skill` makes loading **explicit and on-demand**:
+`dsh-skill-bundle` makes loading **explicit and on-demand**:
 
 - A group (a **bundle box**) is exposed as one small root skill.
 - Its sub-skills are **not** catalogued up front. They load only when the box
@@ -102,11 +102,11 @@ prebuilt `lib/` plus the default `boxes/`, so no build toolchain is needed on
 the installing machine.
 
 ```sh
-dsh plugin --profile web add dsh-lazy-skill
+dsh plugin --profile web add @lihuu/dsh-skill-bundle
 dsh --profile web --dump-config
 ```
 
-The second command must show a `dsh-lazy-skill` layer. A running profile must
+The second command must show a `dsh-skill-bundle` layer. A running profile must
 be restarted after bundle membership changes.
 
 ### Using your own boxes
@@ -118,8 +118,8 @@ absolute `boxesDir`:
 
 ```yaml
 - insert:
-    - id: dsh-lazy-skill
-      name: dsh-lazy-skill
+    - id: dsh-skill-bundle
+      name: '@lihuu/dsh-skill-bundle'
       config:
         boxesDir: /absolute/path/to/your/boxes
 ```
@@ -156,11 +156,11 @@ npm test           # build + node --test tests/*.test.mjs
 
 ## Creating a skill bundle
 
-A box is just a directory. For example the shipped `dsh-lazy-skill-guides` box:
+A box is just a directory. For example the shipped `dsh-skill-bundle-guides` box:
 
 ```
 boxes/
-  dsh-lazy-skill-guides/
+  dsh-skill-bundle-guides/
     SKILL.md              # root skill
     install-plugin/SKILL.md
     create-bundle/SKILL.md
@@ -172,7 +172,7 @@ Every `SKILL.md` needs `name` + `description` in its frontmatter:
 
 ```markdown
 ---
-name: dsh-lazy-skill-guides
+name: dsh-skill-bundle-guides
 description: "Guides for using this plugin."
 loadSubskills:          # optional: auto-load these sub-skills
   - install-plugin
@@ -189,7 +189,7 @@ Sub-skills are ordinary skills too:
 ```markdown
 ---
 name: install-plugin
-description: "How to install dsh-lazy-skill."
+description: "How to install dsh-skill-bundle."
 ---
 
 How to install the plugin...

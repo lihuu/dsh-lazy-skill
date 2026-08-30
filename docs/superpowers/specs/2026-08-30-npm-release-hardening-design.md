@@ -1,8 +1,8 @@
-# dsh-lazy-skill npm Release Hardening Design
+# dsh-skill-bundle npm Release Hardening Design
 
 ## Problem
 
-`dsh-lazy-skill` already demonstrates the desired bundle-box workflow, but the
+`dsh-skill-bundle` already demonstrates the desired bundle-box workflow, but the
 repository is not yet a self-contained DeepSeek Harness bundle suitable for an
 npm install:
 
@@ -26,7 +26,7 @@ npm install:
 ## Release Goal
 
 Ship a prebuilt npm package that can be installed with
-`dsh plugin --profile <name> add dsh-lazy-skill`, activates itself as a Harness
+`dsh plugin --profile <name> add @lihuu/dsh-skill-bundle`, activates itself as a Harness
 bundle, preserves the lazy catalog benefit, loads selected child instructions
 with their ordinary skill identities/resource hints, and has repeatable source,
 archive, and real-Harness verification.
@@ -82,7 +82,7 @@ receive prebuilt `lib/` and do not build during installation.
 ## Harness Activation Design
 
 Add `cordis.patch.yml` with one inserted row whose module name is
-`dsh-lazy-skill`, and declare it through:
+`dsh-skill-bundle`, and declare it through:
 
 ```json
 {

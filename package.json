@@ -1,7 +1,7 @@
 {
-  "name": "dsh-lazy-skill",
+  "name": "@lihuu/dsh-skill-bundle",
   "version": "0.1.0",
-  "description": "Lazy-load skill bundles for DeepSeek Harness: a bundle box holds a root skill and sub-skills, loaded by metadata (`loadSubskills`) or by model decision from body text.",
+  "description": "Skill bundles for DeepSeek Harness: a bundle box holds a root skill and sub-skills, loaded by metadata (loadSubskills) or by model decision from body text.",
   "type": "module",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",

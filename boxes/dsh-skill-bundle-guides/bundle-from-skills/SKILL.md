@@ -1,6 +1,6 @@
 ---
 name: bundle-from-skills
-description: "Pack a user-supplied set of skills into a new dsh-lazy-skill bundle box."
+description: "Pack a user-supplied set of skills into a new dsh-skill-bundle bundle box."
 ---
 
 When the user gives you a set of skills and asks you to pack them into a bundle:

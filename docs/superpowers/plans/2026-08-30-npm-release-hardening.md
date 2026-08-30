@@ -1,4 +1,4 @@
-# dsh-lazy-skill npm Release Hardening Implementation Plan
+# dsh-skill-bundle npm Release Hardening Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -295,7 +295,7 @@
 - Modify: `.gitignore`
 
 **Interfaces:**
-- Produces: npm entry `dsh-lazy-skill` with ESM default export surface from
+- Produces: npm entry `dsh-skill-bundle` with ESM default export surface from
   `lib/index.js` and declarations from `lib/index.d.ts`.
 - Produces: Harness bundle layer `./cordis.patch.yml`.
 - Consumes: the runtime import graph in `src/index.ts` and `src/box.ts`.
@@ -306,8 +306,8 @@
 
   ```yaml
   - insert:
-      - id: dsh-lazy-skill
-        name: dsh-lazy-skill
+      - id: dsh-skill-bundle
+        name: '@lihuu/dsh-skill-bundle'
   ```
 
 - [ ] **Step 2: Rewrite dependency ownership and public entry metadata**
@@ -379,7 +379,7 @@
 
   ```sh
   npm run build
-  node -e "import('./lib/index.js').then(m => { if (m.name !== 'dsh-lazy-skill') process.exit(1) })"
+  node -e "import('./lib/index.js').then(m => { if (m.name !== 'dsh-skill-bundle') process.exit(1) })"
   ```
 
   Expected: TypeScript emits `lib/index.js`, `lib/box.js`, and their `.d.ts`
@@ -401,11 +401,11 @@
 
 **Files:**
 - Modify: `README.md`
-- Modify: `boxes/dsh-lazy-skill-guides/SKILL.md`
-- Modify: `boxes/dsh-lazy-skill-guides/install-plugin/SKILL.md`
-- Modify: `boxes/dsh-lazy-skill-guides/create-bundle/SKILL.md`
-- Modify: `boxes/dsh-lazy-skill-guides/bundle-from-skills/SKILL.md`
-- Modify: `boxes/dsh-lazy-skill-guides/fix-frontmatter/SKILL.md`
+- Modify: `boxes/dsh-skill-bundle-guides/SKILL.md`
+- Modify: `boxes/dsh-skill-bundle-guides/install-plugin/SKILL.md`
+- Modify: `boxes/dsh-skill-bundle-guides/create-bundle/SKILL.md`
+- Modify: `boxes/dsh-skill-bundle-guides/bundle-from-skills/SKILL.md`
+- Modify: `boxes/dsh-skill-bundle-guides/fix-frontmatter/SKILL.md`
 
 **Interfaces:**
 - Documents: one root summary in the model catalog, hidden child summaries,
@@ -438,11 +438,11 @@
   Use:
 
   ```sh
-  dsh plugin --profile web add dsh-lazy-skill
+  dsh plugin --profile web add @lihuu/dsh-skill-bundle
   dsh --profile web --dump-config
   ```
 
-  Explain that the second command must show a `dsh-lazy-skill` layer and that a
+  Explain that the second command must show a `dsh-skill-bundle` layer and that a
   running profile must be restarted after bundle membership changes.
 
 - [ ] **Step 4: Document a custom boxes override**
@@ -473,7 +473,7 @@
 - [ ] **Step 7: Commit the documented contract**
 
   ```sh
-  git add README.md boxes/dsh-lazy-skill-guides
+  git add README.md boxes/dsh-skill-bundle-guides
   git commit -m "docs: describe npm bundle and lazy loading contract"
   ```
 
@@ -516,12 +516,12 @@
   ```sh
   lazy_pack_dir="$(mktemp -d)"
   npm pack --json --pack-destination "$lazy_pack_dir"
-  tar -tf "$lazy_pack_dir/dsh-lazy-skill-0.1.0.tgz"
+  tar -tf "$lazy_pack_dir/lihuu-dsh-skill-bundle-0.1.0.tgz"
   ```
 
   Expected inventory includes `package/lib/index.js`, `package/lib/box.js`,
   both declarations, `package/cordis.patch.yml`, all five shipped
-  `boxes/dsh-lazy-skill-guides/**/SKILL.md` files, README, LICENSE, and
+  `boxes/dsh-skill-bundle-guides/**/SKILL.md` files, README, LICENSE, and
   `package.json`.
 
 - [ ] **Step 4: Reject archive noise and source leakage**
@@ -529,7 +529,7 @@
   Run:
 
   ```sh
-  tar -tf "$lazy_pack_dir/dsh-lazy-skill-0.1.0.tgz" | rg '(^|/)(src|node_modules|coverage)/|\.DS_Store$|\.log$|\.tgz$' && exit 1 || true
+  tar -tf "$lazy_pack_dir/lihuu-dsh-skill-bundle-0.1.0.tgz" | rg '(^|/)(src|node_modules|coverage)/|\.DS_Store$|\.log$|\.tgz$' && exit 1 || true
   ```
 
   Expected: no matching archive entry.
@@ -557,7 +557,7 @@
   Run:
 
   ```sh
-  lazy_smoke_root="$(mktemp -d /private/tmp/dsh-lazy-skill-smoke.XXXXXX)"
+  lazy_smoke_root="$(mktemp -d /private/tmp/dsh-skill-bundle-smoke.XXXXXX)"
   lazy_pack_dir="$lazy_smoke_root/pack"
   lazy_test_home="$lazy_smoke_root/home"
   mkdir -p "$lazy_pack_dir" "$lazy_test_home"
@@ -583,11 +583,11 @@
   Run:
 
   ```sh
-  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh plugin --profile headless add "$lazy_pack_dir/dsh-lazy-skill-0.1.0.tgz"
+  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh plugin --profile headless add "$lazy_pack_dir/lihuu-dsh-skill-bundle-0.1.0.tgz"
   ```
 
   Expected: the profile dependency and `dsh.profile.bundles` both contain
-  `dsh-lazy-skill`; no build-script allowlist is requested because the tarball
+  `dsh-skill-bundle`; no build-script allowlist is requested because the tarball
   contains prebuilt output.
 
 - [ ] **Step 4: Prove the installed layer is composed**
@@ -595,7 +595,7 @@
   Run:
 
   ```sh
-  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh --profile headless --dump-config | rg 'dsh-lazy-skill'
+  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh --profile headless --dump-config | rg 'dsh-skill-bundle'
   ```
 
   Expected: the bundle layer and inserted plugin row are present.
@@ -605,7 +605,7 @@
   Run:
 
   ```sh
-  node --input-type=module -e "const m = await import('file://$lazy_test_home/profiles/headless/node_modules/dsh-lazy-skill/lib/index.js'); if (m.name !== 'dsh-lazy-skill') process.exit(1)"
+  node --input-type=module -e "const m = await import('file://$lazy_test_home/profiles/headless/node_modules/@lihuu/dsh-skill-bundle/lib/index.js'); if (m.name !== 'dsh-skill-bundle') process.exit(1)"
   ```
 
   Expected: the installed entry imports and exports the correct plugin name.
@@ -617,7 +617,7 @@
   With a valid DeepSeek credential available to the isolated process, run:
 
   ```sh
-  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh --profile headless $'/dsh-lazy-skill-guides\nUse the loaded guide bundle and list the child skill names.'
+  DSH_HOME="$lazy_test_home" pnpm --dir /Users/lihu/git/deepseek-harness dsh --profile headless $'/dsh-skill-bundle-guides\nUse the loaded guide bundle and list the child skill names.'
   ```
 
   Expected: the real headless agent completes successfully after the installed
@@ -631,7 +631,7 @@
 
   ```sh
   case "$lazy_smoke_root" in
-    /private/tmp/dsh-lazy-skill-smoke.*) rm -rf -- "$lazy_smoke_root" ;;
+    /private/tmp/dsh-skill-bundle-smoke.*) rm -rf -- "$lazy_smoke_root" ;;
     *) echo "refusing unexpected smoke root: $lazy_smoke_root" >&2; exit 1 ;;
   esac
   ```
