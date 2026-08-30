@@ -26,8 +26,9 @@ import type {
   SkillProvider,
   SkillProviderControl,
 } from '@deepseek-ai/dsh-skill'
+import { renderSkillContent } from '@deepseek-ai/dsh-skill'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { discoverBoxes, type Box } from './box.ts'
+import { discoverBoxes, type Box, type DiscoveredSkill } from './box.ts'
 
 /** Name of this plugin, used as the loader row name. */
 export const name = 'dsh-lazy-skill'
@@ -69,24 +70,52 @@ function boxesDir(config: Config): string {
   return config.boxesDir ?? defaultBoxesDir()
 }
 
-/** Build the SKILL.md path for a box slot. */
-function skillPath(box: Box, slot: BoxSlot): string {
-  switch (slot.kind) {
-    case 'root':
-      return join(box.path, 'SKILL.md')
-    case 'sub':
-      return join(box.path, slot.sub, 'SKILL.md')
-  }
-}
-
-/** Build the SKILL.md path for a known sub-skill directory within a box. */
-function subSkillPath(box: Box, sub: string): string {
-  return join(box.path, sub, 'SKILL.md')
-}
-
 /** Build the SKILL.md path for a box's root skill. */
 function rootSkillPath(box: Box): string {
   return join(box.path, 'SKILL.md')
+}
+
+/** Expand the children a root's `loadSubskills` metadata selects. */
+function resolveExpandedSubskills(box: Box): readonly DiscoveredSkill[] | undefined {
+  const declared = box.root.metadata?.loadSubskills
+  if (declared === undefined) return undefined
+  if (declared === true) return box.subs
+  if (!Array.isArray(declared)) {
+    throw new Error(
+      `dsh-lazy-skill: box ${box.dir}: loadSubskills must be true or an array of child names, got ${JSON.stringify(declared)}`,
+    )
+  }
+  const seen = new Set<string>()
+  return declared.map((name) => {
+    if (typeof name !== 'string' || name.length === 0) {
+      throw new Error(
+        `dsh-lazy-skill: box ${box.dir}: loadSubskills entries must be non-empty strings, got ${JSON.stringify(name)}`,
+      )
+    }
+    if (seen.has(name)) {
+      throw new Error(`dsh-lazy-skill: box ${box.dir}: loadSubskills lists "${name}" more than once`)
+    }
+    seen.add(name)
+    const sub = box.subs.find(item => item.name === name)
+    if (sub === undefined) {
+      throw new Error(
+        `dsh-lazy-skill: box ${box.dir}: loadSubskills references child "${name}" which does not exist in this box`,
+      )
+    }
+    return sub
+  })
+}
+
+/** Render selected sub-skills with their own identity and resource base. */
+function renderExpandedSubskills(skills: readonly DiscoveredSkill[]): string {
+  return skills
+    .map(sub => renderSkillContent({
+      name: sub.name,
+      provider: name,
+      resourceBase: { kind: 'directory', path: sub.path },
+      content: sub.content,
+    }))
+    .join('\n\n')
 }
 
 /**
@@ -131,9 +160,9 @@ export function apply(ctx: Context, config: Config = {}): void {
             source: 'custom',
             provider: name,
             rank: LAZY_SKILL_RANK,
-            locator: { box: box.dir, slot: { kind: 'sub', sub: sub.name } } satisfies BoxLocator,
-            resourceBase: { kind: 'directory', path: box.path },
-            path: subSkillPath(box, sub.name),
+            locator: { box: box.dir, slot: { kind: 'sub', sub: sub.dir } } satisfies BoxLocator,
+            resourceBase: { kind: 'directory', path: sub.path },
+            path: sub.path,
           })
         }
       }
@@ -147,40 +176,19 @@ export function apply(ctx: Context, config: Config = {}): void {
       if (box === undefined) return undefined
 
       const slot: BoxSlot = locator.slot
-      let skill
-      if (slot.kind === 'root') {
-        skill = box.root
-      } else if (slot.kind === 'sub') {
-        skill = box.subs.find(sub => sub.name === slot.sub)
-      }
+      const rootSkill = slot.kind === 'root' ? box.root : undefined
+      const subSkill = slot.kind === 'sub' ? box.subs.find(sub => sub.dir === slot.sub) : undefined
+      const skill = rootSkill ?? subSkill
       if (skill === undefined) return undefined
 
-      const path = slot.kind === 'sub'
-        ? subSkillPath(box, slot.sub)
-        : rootSkillPath(box)
+      const expanded = rootSkill !== undefined
+        ? resolveExpandedSubskills(box)
+        : undefined
 
-      // Scheme 1: a root skill may declare `loadSubskills` in its frontmatter.
-      // When present, the box loads ONLY the named sub-skill bodies and IGNORES
-      // the root body entirely — no model decision, no need to fetch more.
-      // When absent, fall back to the plain body (model decides from its text).
-      let content = skill.content
-      let expandedSubs: string[] | undefined
-      if (slot.kind === 'root') {
-        const declared = skill.metadata?.loadSubskills
-        if (Array.isArray(declared)) {
-          const subs: string[] = []
-          for (const subName of declared) {
-            if (typeof subName !== 'string') continue
-            const sub = box.subs.find(item => item.name === subName)
-            if (sub === undefined) continue
-            subs.push(sub.content)
-          }
-          // Rule A: with loadSubskills configured, return ONLY the sub-skills,
-          // ignoring the root body text.
-          content = subs.join('\n\n---\n\n')
-          expandedSubs = subs
-        }
-      }
+      // With loadSubskills configured, return ONLY the sub-skills, ignoring the
+      // root body text. Without it, fall back to the plain body (the model
+      // decides from its text).
+      const content = expanded !== undefined ? renderExpandedSubskills(expanded) : skill.content
 
       return {
         name: skill.name,
@@ -189,11 +197,14 @@ export function apply(ctx: Context, config: Config = {}): void {
         invocation: candidate.invocation,
         source: candidate.source,
         provider: name,
-        resourceBase: { kind: 'directory', path: box.path },
-        path,
+        resourceBase: rootSkill !== undefined
+          ? { kind: 'directory', path: box.path }
+          : { kind: 'directory', path: subSkill!.path },
+        path: rootSkill !== undefined ? rootSkillPath(box) : subSkill!.path,
         content,
-        ...(slot.kind === 'root'
-          ? { metadata: { ...(skill.metadata ?? {}), ...(expandedSubs !== undefined ? { _expanded: true } : {}) } }
+        ...(rootSkill !== undefined
+          ? { metadata: { ...(skill.metadata ?? {}), ...(expanded !== undefined
+            ? { expandedSubskills: expanded.map(sub => sub.name) } : {}) } }
           : { metadata: skill.metadata ?? {} }),
       }
     },
@@ -303,7 +314,7 @@ export function apply(ctx: Context, config: Config = {}): void {
           }
           const sub = box.subs.find(item => item.name === skillName)
           if (sub !== undefined) {
-            resolved = { name: skillName, locator: { box: box.dir, slot: { kind: 'sub', sub: skillName } } }
+            resolved = { name: skillName, locator: { box: box.dir, slot: { kind: 'sub', sub: sub.dir } } }
             break
           }
         }
