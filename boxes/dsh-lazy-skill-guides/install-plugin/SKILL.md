@@ -1,41 +1,38 @@
 ---
 name: install-plugin
-description: 'How to install dsh-lazy-skill into a DeepSeek Harness setup (place under $DSH_HOME, symlink into the shared modules dir, and add a cordis.patch.yml row).'
+description: 'How to install dsh-lazy-skill into a DeepSeek Harness profile (npm bundle install, or a source checkout for development).'
 ---
 
 If asked to install dsh-lazy-skill, follow these steps:
 
-1. Resolve the harness home (default `~/.dsh`, or `$DSH_HOME` if set).
-2. Put the plugin directory at `$DSH_HOME/plugins/dsh-lazy-skill` (clone, copy,
-   or symlink).
-3. Symlink it into the shared modules dir so the Loader can import it:
+1. **Preferred — npm bundle.** The package declares `dsh.bundle` and ships
+   prebuilt `lib/` plus the default `boxes/`, so `dsh plugin add` activates it
+   as a Harness layer with no build step:
 
    ```
-   mkdir -p "$DSH_HOME/profiles/node_modules/@local"
-   ln -s "$DSH_HOME/plugins/dsh-lazy-skill" "$DSH_HOME/profiles/node_modules/@local/dsh-lazy-skill"
+   dsh plugin --profile <name> add dsh-lazy-skill
+   dsh --profile <name> --dump-config
    ```
 
-4. Add a patch row. For all profiles, append an `insert` to
-   `$DSH_HOME/cordis.patch.yml`:
+   The dump must show a `dsh-lazy-skill` layer. Restart the running profile
+   after the bundle membership change.
 
-   ```yaml
-   - insert:
-       - id: dsh-lazy-skill
-         name: '@local/dsh-lazy-skill'
-         config:
-           boxesDir: "$DSH_HOME/plugins/dsh-lazy-skill/boxes"
-   ```
-
-   For one profile only, put the same `insert` in
-   `$DSH_HOME/profiles/<name>/cordis.patch.yml` instead.
-
-5. If the plugin is a source checkout (has `src/` but no `lib/`), build it first:
+2. **Development — source checkout.** Clone (or copy) the repository, then
+   build it before use:
 
    ```
-   cd "$DSH_HOME/plugins/dsh-lazy-skill"
+   cd /path/to/dsh-lazy-skill
    npm install && npm run build
    ```
 
-6. Restart (or reload) the running `dsh` server so the new plugin row applies.
-   Verify: the box root skills appear in the skill slash menu, and `skill_browse`
-   lists their sub-skills.
+   Install the checkout as a Harness plugin by adding a patch row that mounts
+   it by module name, with an absolute `boxesDir` if the packaged boxes are not
+   the ones to use.
+
+3. **Custom boxes.** By default the plugin uses the boxes shipped beside the
+   installed package. To use your own, add a later patch row with the same
+   `id`/`name` and an absolute `boxesDir`; patch rows replace complete config
+   values, so re-state every field you need.
+
+4. Verify: the box root skills appear in the skill slash menu, and
+   `skill_browse` lists their sub-skills.

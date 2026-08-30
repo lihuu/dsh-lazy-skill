@@ -5,8 +5,9 @@ that groups related skills into **bundle boxes**. Each box has one **root**
 skill and any number of **sub-skills**; a box loads either by frontmatter
 metadata (`loadSubskills`) or by letting the model decide from the body text.
 
-It is an **out-of-tree** plugin: it lives entirely under `$DSH_HOME` and never
-modifies the Harness repository.
+It ships as a self-activating Harness **bundle**: installing the npm package
+adds a patch layer that inserts the plugin row, so no manual patching or
+symlinking is needed.
 
 ---
 
@@ -17,23 +18,26 @@ unrelated skills. A **family of related skills** — a toolchain, a phased
 workflow, a project with several sub-tasks — has a real cost under the naive
 approach:
 
-> Every available skill tends to get pulled into the model context on use, even
-> when it is unrelated to the current task. If a session merely *has* such a
-> group installed, the whole group's instructions can end up loaded even when
-> the task never touches them — wasting tokens, bloating the context window,
-> breaking KV-cache reuse, and slowing every turn.
+> Every installed skill contributes a model-invocable name and description to
+> the `<available_skills>` catalog on each relevant prompt. A group installed
+> as flat siblings therefore expands that catalog (and the prompt budget it
+> consumes) even when the current task never touches the group. A loaded skill
+> body only enters context after a tool or slash invocation, but the summaries
+> of every sibling are always present — wasting tokens, bloating the context
+> window, breaking KV-cache reuse, and slowing every turn.
 
 Two symptoms follow:
 
-1. **Context pollution** — unrelated groups still consume prompt budget.
-2. **Unnecessary questions** — with everything in-context, the model drifts into
-   asking which piece to use instead of just working.
+1. **Context pollution** — unrelated groups still consume prompt budget through
+   their catalog summaries.
+2. **Unnecessary questions** — with many sibling summaries in-context, the model
+   drifts into asking which piece to use instead of just working.
 
 `dsh-lazy-skill` makes loading **explicit and on-demand**:
 
 - A group (a **bundle box**) is exposed as one small root skill.
-- Its sub-skills are **not** loaded up front. They load only when the box is
-  pulled in via `loadSubskills` — and then only the ones listed.
+- Its sub-skills are **not** catalogued up front. They load only when the box
+  is pulled in via `loadSubskills` — and then only the ones listed.
 - Nothing from the group is in context until you ask for it.
 
 You can opt out per box: without `loadSubskills`, the box returns its short root
@@ -69,12 +73,18 @@ follows that.
 
   | Root frontmatter | On load the box produces |
   |---|---|
-  | `loadSubskills: [a, b]` | sub-skill `a` + `b` bodies only (root body ignored) |
+  | `loadSubskills: true` | every sub-skill body, in directory order (root body ignored) |
+  | `loadSubskills: [a, b]` | sub-skill `a` + `b` bodies only, in that order (root body ignored) |
   | no `loadSubskills` | root body as-is; model decides from its text |
 
-- **Model-facing tools**: `skill` (default loader, follows the rules above),
-  `skill_load` (explicitly load one or more skills by name), `skill_browse`
-  (list a box's sub-skill names).
+- Each expanded sub-skill keeps its own identity and resource directory: the
+  body is rendered as a `skill_content` block whose resource base is the
+  child's own directory, so relative paths inside it resolve correctly.
+- Invalid `loadSubskills` values fail loudly (wrong type, unknown child name,
+  or a duplicate name) instead of silently producing partial content.
+- **Model-facing tools**: `skill_browse` (list a box's sub-skill names —
+  summaries only), `skill_load` (load one or more skills by exact name), plus
+  the standard `skill` tool for root invocation.
 - **No framework changes** — a plain Cordis plugin.
 
 ---
@@ -82,50 +92,65 @@ follows that.
 ## Requirements
 
 - A working DeepSeek Harness installation (`dsh`), e.g. `dsh --profile web`.
-- `boxesDir` pointing at your bundle boxes.
-- Node.js to build the TypeScript source (`npm install && npm run build`).
 
 ---
 
 ## Install
 
-The Loader resolves the plugin by module name; the plugin itself is not on npm,
-so it must be reachable on disk. Two ways to mount it:
+The package is a Harness **bundle**: it declares `dsh.bundle` and ships a
+prebuilt `lib/` plus the default `boxes/`, so no build toolchain is needed on
+the installing machine.
 
-### Option A — global (all profiles)
+```sh
+dsh plugin --profile web add dsh-lazy-skill
+dsh --profile web --dump-config
+```
 
-1. Put this repository somewhere under your Harness home:
+The second command must show a `dsh-lazy-skill` layer. A running profile must
+be restarted after bundle membership changes.
 
-   ```sh
-   mkdir -p "$DSH_HOME/plugins" && cp -r dsh-lazy-skill "$DSH_HOME/plugins/"
-   ```
+### Using your own boxes
 
-2. Make it resolvable under a module name the Loader can import, via a symlink
-   in the shared modules dir:
+By default the plugin resolves boxes beside its installed package (`boxes/`).
+To point it at your own directory, add a later patch row (profile or home
+level) that replaces the inserted row with the same `id`/`name` and an
+absolute `boxesDir`:
 
-   ```sh
-   mkdir -p "$DSH_HOME/profiles/node_modules/@local"
-   ln -s "$DSH_HOME/plugins/dsh-lazy-skill" "$DSH_HOME/profiles/node_modules/@local/dsh-lazy-skill"
-   ```
+```yaml
+- insert:
+    - id: dsh-lazy-skill
+      name: dsh-lazy-skill
+      config:
+        boxesDir: /absolute/path/to/your/boxes
+```
 
-3. Add a global patch (`$DSH_HOME/cordis.patch.yml`) that inserts the row:
+Harness patch rows replace complete config values instead of deep-merging them,
+so re-state every field you need.
 
-   ```yaml
-   - insert:
-       - id: dsh-lazy-skill
-         name: '@local/dsh-lazy-skill'
-         config:
-           boxesDir: "$DSH_HOME/plugins/dsh-lazy-skill/boxes"
-   ```
+### Building from source (developers)
 
-### Option B — per profile
+```sh
+npm install        # installs typescript + dev dependencies
+npm run build      # tsc compiles src/ -> lib/
+npm test           # build + node --test tests/*.test.mjs
+```
 
-Put the same `insert` block into a specific profile's patch instead:
-`$DSH_HOME/profiles/<name>/cordis.patch.yml`.
+`lib/` and `node_modules/` are git-ignored; they are rebuilt, not committed.
 
-> The `boxesDir` in the example uses `$DSH_HOME`. The loader supports `!!js`
-> expressions for such environment references; if in doubt, use a literal
-> absolute path.
+---
+
+## Activation semantics
+
+- Each box contributes **one** model-invocable root candidate.
+- Child candidates stay hidden from the model catalog (`modelInvocable:
+  false`) and remain directly user-invocable through Harness slash invocation.
+- A root with no `loadSubskills` returns its own body unchanged.
+- `loadSubskills: true` expands every immediate child in deterministic
+  (directory-name) order.
+- `loadSubskills: [name, ...]` expands exactly those children in the declared
+  order and ignores the root body.
+- Children do **not** become new model-visible catalog rows after activation;
+  `skill_load` is the model tool for exact hidden-child loading.
 
 ---
 
@@ -134,7 +159,7 @@ Put the same `insert` block into a specific profile's patch instead:
 A box is just a directory. For example the shipped `dsh-lazy-skill-guides` box:
 
 ```
-$DSH_HOME/plugins/dsh-lazy-skill/boxes/
+boxes/
   dsh-lazy-skill-guides/
     SKILL.md              # root skill
     install-plugin/SKILL.md
@@ -181,17 +206,6 @@ colon (`a: x, b, c`), **wrap it in double quotes**:
 ```yaml
 description: "a, b, c: needs quoting because of the comma/colon"
 ```
-
----
-
-## Building from source
-
-```sh
-npm install        # installs typescript + @types/node for the build
-npm run build      # tsc compiles src/ -> lib/
-```
-
-`lib/` and `node_modules/` are git-ignored; they are rebuilt, not committed.
 
 ---
 
