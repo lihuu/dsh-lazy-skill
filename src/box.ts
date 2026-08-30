@@ -27,6 +27,14 @@ export interface ParsedSkill {
   readonly metadata: Readonly<Record<string, unknown>>
 }
 
+/** A parsed skill whose physical filesystem identity is known. */
+export interface DiscoveredSkill extends ParsedSkill {
+  /** Physical directory name on disk. */
+  readonly dir: string
+  /** Absolute path of the skill's directory. */
+  readonly path: string
+}
+
 /** A box (bundle) discovered under the boxes root. */
 export interface Box {
   /** Directory name = stable id used as box locator. */
@@ -36,7 +44,7 @@ export interface Box {
   /** Root skill parsed from `<box>/SKILL.md`. */
   readonly root: ParsedSkill
   /** Sub-skills parsed from `<box>/<sub>/SKILL.md`. */
-  readonly subs: readonly ParsedSkill[]
+  readonly subs: readonly DiscoveredSkill[]
 }
 
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
@@ -65,19 +73,20 @@ export function parseSkillFile(raw: string): ParsedSkill | undefined {
 }
 
 /** Whether the directory holds a `SKILL.md`. */
-async function hasSkill(path: string): Promise<boolean> {
+async function readSkill(path: string): Promise<ParsedSkill | undefined> {
   try {
-    const st = await readFile(join(path, 'SKILL.md'), 'utf8')
-    return parseSkillFile(st) !== undefined
+    const raw = await readFile(path, 'utf8')
+    return parseSkillFile(raw)
   } catch {
-    return false
+    return undefined
   }
 }
 
 /**
  * Discover boxes under `boxesDir`.
  * @param boxesDir - absolute root directory holding box (bundle) directories.
- * @returns each box with its root skill and sub-skills; an absent/empty root yields [].
+ * @returns each box with its root skill and sub-skills, both sorted by directory
+ *   name; an absent/empty root yields [].
  */
 export async function discoverBoxes(boxesDir: string): Promise<Box[]> {
   let entries
@@ -87,25 +96,27 @@ export async function discoverBoxes(boxesDir: string): Promise<Box[]> {
     return []
   }
   const boxes: Box[] = []
-  for (const entry of entries) {
-    if (!entry.isDirectory()) continue
-    const boxPath = join(boxesDir, entry.name)
-    const rootRaw = await readFile(join(boxPath, 'SKILL.md'), 'utf8').catch(() => undefined)
-    if (rootRaw === undefined) continue
-    const root = parseSkillFile(rootRaw)
+  const boxDirs = entries
+    .filter(entry => entry.isDirectory())
+    .map(entry => entry.name)
+    .sort()
+  for (const dir of boxDirs) {
+    const boxPath = join(boxesDir, dir)
+    const root = await readSkill(join(boxPath, 'SKILL.md'))
     if (root === undefined) continue
 
     // Same-level sub-skills: each immediate sub-directory with its own SKILL.md
-    const subs: ParsedSkill[] = []
-    for (const subEntry of await readdir(boxPath, { withFileTypes: true }).catch(() => [])) {
-      if (!subEntry.isDirectory()) continue
-      if (!(await hasSkill(join(boxPath, subEntry.name)))) continue
-      const subRaw = await readFile(join(boxPath, subEntry.name, 'SKILL.md'), 'utf8').catch(() => undefined)
-      if (subRaw === undefined) continue
-      const parsed = parseSkillFile(subRaw)
-      if (parsed !== undefined) subs.push(parsed)
+    const subs: DiscoveredSkill[] = []
+    const subDirs = (await readdir(boxPath, { withFileTypes: true }).catch(() => []))
+      .filter(entry => entry.isDirectory())
+      .map(entry => entry.name)
+      .sort()
+    for (const subDir of subDirs) {
+      const subPath = join(boxPath, subDir)
+      const parsed = await readSkill(join(subPath, 'SKILL.md'))
+      if (parsed !== undefined) subs.push({ ...parsed, dir: subDir, path: subPath })
     }
-    boxes.push({ dir: entry.name, path: boxPath, root, subs })
+    boxes.push({ dir, path: boxPath, root, subs })
   }
   return boxes
 }
