@@ -61,8 +61,8 @@ test('package-owned runtime dependencies are declared', () => {
 
 test('host-provided services are peers, scoped to the npm registry line', () => {
   assert.equal(pkg.peerDependencies['@deepseek-ai/cordis'], '^4.0.1')
-  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-skill'], '^0.1.1-rc.2')
-  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-tools'], '^0.1.1-rc.2')
+  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-skill'], '^0.1.5-rc.2')
+  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-tools'], '^0.1.5-rc.2')
 })
 
 test('stale host imports were removed from the peer surface', () => {

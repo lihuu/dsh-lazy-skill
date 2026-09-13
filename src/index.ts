@@ -130,7 +130,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   const provider: SkillProvider = {
     name,
     async list() {
-      const boxes = await discoverBoxes(root)
+      const boxes = await discoverBoxes(root, message => ctx.logger?.warn?.(message))
       const out: SkillCandidate[] = []
       for (const box of boxes) {
         const rootSkill = box.root
@@ -171,7 +171,7 @@ export function apply(ctx: Context, config: Config = {}): void {
     async get(candidate) {
       const locator = candidate.locator as BoxLocator | undefined
       if (locator === undefined) return undefined
-      const boxes = await discoverBoxes(root)
+      const boxes = await discoverBoxes(root, message => ctx.logger?.warn?.(message))
       const box = boxes.find(b => b.dir === locator.box)
       if (box === undefined) return undefined
 
@@ -252,7 +252,7 @@ export function apply(ctx: Context, config: Config = {}): void {
       ],
     },
     async execute(args: { boxes?: string[] }) {
-      const boxes = await discoverBoxes(root)
+      const boxes = await discoverBoxes(root, message => ctx.logger?.warn?.(message))
       const wanted = args.boxes && args.boxes.length > 0 ? new Set(args.boxes) : undefined
       return boxes
         .filter(box => wanted === undefined || wanted.has(box.dir))
@@ -297,13 +297,13 @@ export function apply(ctx: Context, config: Config = {}): void {
       },
       render: (_args: Record<string, unknown>, value: unknown) => [
         { type: 'text', text: (value as Array<{ name: string; content: string }> ?? [])
-            .map(v => '<skill_content name="' + v.name + '">\n' + v.content + '\n</skill_content>')
+            .map(v => renderSkillContent({ name: v.name, provider: name, content: v.content }))
             .join('\n\n') },
       ],
     },
     async execute(args: { skills?: string[] }) {
       if (!args.skills || args.skills.length === 0) return []
-      const boxes = await discoverBoxes(root)
+      const boxes = await discoverBoxes(root, message => ctx.logger?.warn?.(message))
       const out: Array<{ name: string; content: string }> = []
       for (const skillName of args.skills) {
         let resolved: { name: string; locator: BoxLocator } | undefined

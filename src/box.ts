@@ -12,6 +12,7 @@
 
 import { readdir, readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { isSkillName } from '@deepseek-ai/dsh-skill'
 import { parse as parseYaml } from 'yaml'
 
 /** One parsed SKILL.md file: frontmatter fields plus the markdown body. */
@@ -62,6 +63,10 @@ export function parseSkillFile(raw: string): ParsedSkill | undefined {
   const name = typeof data.name === 'string' ? data.name : undefined
   const description = typeof data.description === 'string' ? data.description : undefined
   if (!name || !description) return undefined
+  // The skill registry validates every candidate name and throws outside the
+  // provider-list try/catch, so one out-of-grammar name rejects the whole
+  // session catalog. Drop it here and let the caller report it.
+  if (!isSkillName(name)) return undefined
   const whenToUse = typeof data.whenToUse === 'string' ? data.whenToUse : undefined
   return {
     name,
@@ -85,10 +90,11 @@ async function readSkill(path: string): Promise<ParsedSkill | undefined> {
 /**
  * Discover boxes under `boxesDir`.
  * @param boxesDir - absolute root directory holding box (bundle) directories.
+ * @param warn - sink for a box or sub-skill skipped as unusable; omitted means silent.
  * @returns each box with its root skill and sub-skills, both sorted by directory
  *   name; an absent/empty root yields [].
  */
-export async function discoverBoxes(boxesDir: string): Promise<Box[]> {
+export async function discoverBoxes(boxesDir: string, warn?: (message: string) => void): Promise<Box[]> {
   let entries
   try {
     entries = await readdir(boxesDir, { withFileTypes: true })
@@ -103,7 +109,10 @@ export async function discoverBoxes(boxesDir: string): Promise<Box[]> {
   for (const dir of boxDirs) {
     const boxPath = join(boxesDir, dir)
     const root = await readSkill(join(boxPath, 'SKILL.md'))
-    if (root === undefined) continue
+    if (root === undefined) {
+      warn?.(`skill-bundle: skipped box "${dir}": SKILL.md has no usable name/description`)
+      continue
+    }
 
     // Same-level sub-skills: each immediate sub-directory with its own SKILL.md
     const subs: DiscoveredSkill[] = []
@@ -115,6 +124,7 @@ export async function discoverBoxes(boxesDir: string): Promise<Box[]> {
       const subPath = join(boxPath, subDir)
       const parsed = await readSkill(join(subPath, 'SKILL.md'))
       if (parsed !== undefined) subs.push({ ...parsed, dir: subDir, path: subPath })
+      else warn?.(`skill-bundle: skipped sub-skill "${dir}/${subDir}": unusable SKILL.md`)
     }
     boxes.push({ dir, path: boxPath, root, subs })
   }

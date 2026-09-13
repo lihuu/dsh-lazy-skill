@@ -49,6 +49,33 @@ test('parseSkillFile rejects missing required name or description', () => {
   assert.equal(parseSkillFile('---\ndescription: only-desc\n---\n\nBody'), undefined)
 })
 
+test('parseSkillFile rejects a name outside the registry grammar', () => {
+  // The skill registry validates every candidate name and throws outside the
+  // provider-list try/catch, so this must never reach it.
+  assert.equal(parseSkillFile(skill('name: Not_Kebab\ndescription: Bad name.')), undefined)
+  assert.equal(parseSkillFile(skill('name: -leading\ndescription: Bad name.')), undefined)
+  assert.ok(parseSkillFile(skill('name: kebab-case-2\ndescription: Fine.')))
+})
+
+test('discovery reports each skipped entry instead of dropping it silently', async () => {
+  const fixture = makeFixture({
+    'good-box/SKILL.md': skill('name: good-box\ndescription: Fine.'),
+    'good-box/bad-sub/SKILL.md': skill('name: Bad_Sub\ndescription: Bad name.'),
+    'bad-box/SKILL.md': skill('name: Bad_Box\ndescription: Bad name.'),
+  })
+  try {
+    const warnings = []
+    const boxes = await discoverBoxes(fixture, message => warnings.push(message))
+    assert.deepEqual(boxes.map(box => box.dir), ['good-box'])
+    assert.equal(boxes[0].subs.length, 0)
+    assert.equal(warnings.length, 2)
+    assert.match(warnings[0], /bad-box/)
+    assert.match(warnings[1], /good-box\/bad-sub/)
+  } finally {
+    cleanup(fixture)
+  }
+})
+
 test('discovery keeps frontmatter name separate from the physical directory', async () => {
   const fixture = makeFixture({
     'box-a/SKILL.md': skill('name: friendly-root\ndescription: Root desc.'),
